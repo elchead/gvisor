@@ -287,6 +287,15 @@ steps:
     parallelism: 10
     agents:
       arch: "arm64"
+  # All S/R system call tests.
+  - <<: *common
+    label: ":toolbox: System call tests (AMD64)"
+    command: make BAZEL_OPTIONS=--test_tag_filters=buildkite,save-restore syscall-tests
+    parallelism: 20
+    agents:
+      <<: *platform_specific_agents
+      <<: *kvm_agents
+      arch: "amd64"
 
   # Integration tests.
   - <<: *common
