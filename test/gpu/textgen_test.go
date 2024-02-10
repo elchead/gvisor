@@ -17,6 +17,7 @@ package textgen_test
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"fmt"
 	"strings"
@@ -27,6 +28,9 @@ import (
 	"gvisor.dev/gvisor/pkg/test/testutil"
 	"gvisor.dev/gvisor/test/gpu/ollama"
 )
+
+//go:embed gvisor.png
+var gVisorPNG []byte
 
 // extractCode extracts code between two code block markers.
 func extractCode(response, codeBlockDelim string) (string, error) {
@@ -72,7 +76,7 @@ func TestLLM(t *testing.T) {
 	llmContainer := dockerutil.MakeContainer(ctx, t)
 	defer llmContainer.CleanUp(ctx)
 	startCtx, startCancel := context.WithTimeout(ctx, 3*time.Minute)
-	llm, err := ollama.New(startCtx, llmContainer, t)
+	llm, err := ollama.NewDocker(startCtx, llmContainer, t)
 	startCancel()
 	if err != nil {
 		t.Fatalf("Failed to start ollama: %v", err)
@@ -129,7 +133,7 @@ func TestLLM(t *testing.T) {
 		)
 		promptCtx, promptCancel := context.WithTimeout(ctx, 3*time.Minute)
 		prompt := ollama.Prompt{
-			Model: ollama.ZeroTemperatureModel("codellama:7b"),
+			Model: ollama.ZeroTemperatureModel("codellama:7b-instruct"),
 			Query: fmt.Sprintf(`
 				Generate a Python function that takes a string and verifies that it
 				is a valid Chinese translation of the English phrase "Hello World".
@@ -205,5 +209,27 @@ func TestLLM(t *testing.T) {
 			t.Fatalf("Translation verification with string %q failed: %q\nCode used:\n\n%s\n\n", translation, out, testCode)
 		}
 		t.Logf("Translation verification succeeded with code:\n\n%s\n\n", pythonCode)
+	})
+	t.Run("ocr", func(t *testing.T) {
+		const textInImage = "gVisor"
+		promptCtx, promptCancel := context.WithTimeout(ctx, 3*time.Minute)
+		prompt := ollama.Prompt{
+			Model: ollama.ZeroTemperatureModel("llava:7b-v1.6"),
+			Query: "What is the text written in this image?",
+		}
+		prompt.AddImage(gVisorPNG)
+		response, err := llm.PromptUntil(promptCtx, &prompt, func(prompt *ollama.Prompt, response *ollama.Response) (*ollama.Prompt, error) {
+			defer prompt.Model.RaiseTemperature()
+			text := strings.TrimSpace(response.Text())
+			if !strings.Contains(strings.ToLower(text), strings.ToLower(textInImage)) {
+				return prompt, fmt.Errorf("text does not contain %q: %q", textInImage, text)
+			}
+			return prompt, nil
+		})
+		promptCancel()
+		if err != nil {
+			t.Fatalf("OCR failed: %v", err)
+		}
+		t.Logf("OCR response for gVisor logo: %q", response.Text())
 	})
 }
