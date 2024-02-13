@@ -113,10 +113,7 @@ func (p *PortForward) Execute(ctx context.Context, f *flag.FlagSet, args ...any)
 		util.Fatalf("invalid port string %q", portStr)
 	}
 
-	localPort, err := strconv.Atoi(ports[0])
-	if err != nil {
-		util.Fatalf("invalid port string %q: %v", portStr, err)
-	}
+	localPort := ports[0] // UDS path
 	portNum, err := strconv.Atoi(ports[1])
 	if err != nil {
 		util.Fatalf("invalid port string %q: %v", portStr, err)
@@ -129,12 +126,12 @@ func (p *PortForward) Execute(ctx context.Context, f *flag.FlagSet, args ...any)
 	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(ctx)
 	wg.Add(3)
-	go func(localPort, portNum int) {
+	go func(localAddr string, portNum int) {
 		defer cancel()
 		defer wg.Done()
 		// Print message to local user.
-		fmt.Printf("Forwarding local port %d to %d...\n", localPort, portNum)
-		if err := localForward(ctx, c, localPort, uint16(portNum)); err != nil {
+		fmt.Printf("Forwarding UDS at %q to %d...\n", localAddr, portNum)
+		if err := localForward(ctx, c, localAddr, uint16(portNum)); err != nil {
 			log.Warningf("port forwarding: %v", err)
 		}
 	}(localPort, portNum)
@@ -164,8 +161,8 @@ func (p *PortForward) Execute(ctx context.Context, f *flag.FlagSet, args ...any)
 }
 
 // localForward starts port forwarding from the given local port.
-func localForward(ctx context.Context, c *container.Container, localPort int, containerPort uint16) error {
-	l, err := net.Listen("tcp", ":"+strconv.Itoa(localPort))
+func localForward(ctx context.Context, c *container.Container, localAddress string, containerPort uint16) error {
+	l, err := net.Listen("unix", localAddress)
 	if err != nil {
 		return err
 	}
