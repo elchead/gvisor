@@ -38,6 +38,8 @@ import (
 	"gvisor.dev/gvisor/runsc/flag"
 )
 
+const UnixSocketAddr = "/tmp/payload.sock"
+
 // PortForward implements subcommands.Command for the "portforward" command.
 type PortForward struct {
 	portNum int
@@ -164,8 +166,9 @@ func (p *PortForward) Execute(ctx context.Context, f *flag.FlagSet, args ...any)
 }
 
 // localForward starts port forwarding from the given local port.
-func localForward(ctx context.Context, c *container.Container, localPort int, containerPort uint16) error {
-	l, err := net.Listen("tcp", ":"+strconv.Itoa(localPort))
+func localForward(ctx context.Context, c *container.Container, _ int, containerPort uint16) error {
+	fmt.Println("Listening on", UnixSocketAddr)
+	l, err := net.Listen("unix", UnixSocketAddr)
 	if err != nil {
 		return err
 	}
