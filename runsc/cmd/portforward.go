@@ -135,7 +135,7 @@ func (p *PortForward) Execute(ctx context.Context, f *flag.FlagSet, args ...any)
 		defer cancel()
 		defer wg.Done()
 		// Print message to local user.
-		fmt.Printf("Forwarding local port %d to %d...\n", localPort, portNum)
+		fmt.Printf("Forwarding UDS port %d to %d...\n", localPort, portNum)
 		if err := localForward(ctx, c, localPort, uint16(portNum)); err != nil {
 			log.Warningf("port forwarding: %v", err)
 		}
