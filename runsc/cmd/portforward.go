@@ -85,6 +85,7 @@ func (p *PortForward) SetFlags(f *flag.FlagSet) {
 
 // Execute implements subcommands.Command.Execute.
 func (p *PortForward) Execute(ctx context.Context, f *flag.FlagSet, args ...any) subcommands.ExitStatus {
+	fmt.Println("Starting ES fork")
 	conf := args[0].(*config.Config)
 	// Requires at least the container id and port.
 	if f.NArg() != 2 {
